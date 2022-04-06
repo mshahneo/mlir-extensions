@@ -1101,6 +1101,19 @@ struct SerializeSPIRVPass
         return;
       }
 
+      // @mshahneo: write the SPIR-V binary to a file
+      // can be used to generate human readable SPIR-V code
+      // std::ostringstream oss {std::ofstream::binary};
+      // oss << spvBinary.data();
+      // @TODO: need decide where would we want to write the binary to
+      auto spvModName = spvMod.getName();
+      spvModName->consume_front("__spv__");
+      std::ofstream ofs (spvModName->str().append(".spv"), std::ofstream::binary);
+      if (ofs) {
+        ofs << spvBinary.data();
+        ofs.close();
+      }
+            
       auto spvData =
           llvm::StringRef(reinterpret_cast<const char *>(spvBinary.data()),
                           spvBinary.size() * sizeof(uint32_t));
