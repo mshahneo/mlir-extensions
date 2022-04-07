@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "mlir-extensions/Conversion/gpu_to_gpu_runtime.hpp"
+#include <fstream>
+
 
 static const char *kGpuAllocShared = "gpu.alloc_shared";
 
@@ -1101,24 +1103,27 @@ struct SerializeSPIRVPass
         return;
       }
 
-      // @mshahneo: write the SPIR-V binary to a file
-      // can be used to generate human readable SPIR-V code
-      // std::ostringstream oss {std::ofstream::binary};
-      // oss << spvBinary.data();
-      // @TODO: need decide where would we want to write the binary to
-      auto spvModName = spvMod.getName();
-      spvModName->consume_front("__spv__");
-      std::ofstream ofs (spvModName->str().append(".spv"), std::ofstream::binary);
-      if (ofs) {
-        ofs << spvBinary.data();
-        ofs.close();
-      }
-            
+      
+
       auto spvData =
           llvm::StringRef(reinterpret_cast<const char *>(spvBinary.data()),
                           spvBinary.size() * sizeof(uint32_t));
       auto spvAttr = mlir::StringAttr::get(&getContext(), spvData);
       gpuMod->setAttr(gpu::getDefaultGpuBinaryAnnotation(), spvAttr);
+
+      // @mshahneo: write the SPIR-V binary to a file
+      // can be used to generate human readable SPIR-V code
+      // @TODO: need decide where would we want to write the binary to
+      // currently writing to the present working directory
+      auto spvModName = spvMod.getName();
+      // No need for extra check on spvModName, the check is done before
+      spvModName->consume_front("__spv__");
+      std::ofstream ofs (spvModName->str().append(".spv"), std::ofstream::binary);
+      if (ofs) {
+        ofs << spvData.str();        
+        ofs.close();
+      }
+
       spvMod->erase();
     }
   }
