@@ -1057,10 +1057,17 @@ struct SetSPIRVCapabilitiesPass
         spirv::Capability::Float16,
         spirv::Capability::Float64,
         spirv::Capability::AtomicFloat32AddEXT,
+        spirv::Capability::VectorAnyINTEL,
+        spirv::Capability::Float16Buffer,
+        spirv::Capability::VectorComputeINTEL,
+        spirv::Capability::FunctionFloatControlINTEL,
         // clang-format on
     };
     spirv::Extension exts[] = {
-        spirv::Extension::SPV_EXT_shader_atomic_float_add};
+        spirv::Extension::SPV_EXT_shader_atomic_float_add,
+        spirv::Extension::SPV_INTEL_float_controls2,
+        spirv::Extension::SPV_INTEL_vector_compute
+        };
     auto triple =
         spirv::VerCapExtAttr::get(spirv::Version::V_1_0, caps, exts, context);
     auto attr = spirv::TargetEnvAttr::get(

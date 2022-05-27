@@ -78,9 +78,11 @@ static LogicalResult runMLIRPasses(ModuleOp module) {
       gpu_runtime::createAbiAttrsPass());
   passManager.addPass(gpu_runtime::createSetSPIRVCapabilitiesPass());
 
-  passManager.addPass(gpu_runtime::createGPUToSpirvPass());
+  // passManager.addPass(gpu_runtime::createGPUToSpirvPass());
   OpPassManager &modulePM = passManager.nest<spirv::ModuleOp>();
   modulePM.addPass(spirv::createLowerABIAttributesPass());
+// @mshahneo: Don't want to update the capabilities, 
+// capabilities are already added in the test code
   modulePM.addPass(spirv::createUpdateVersionCapabilityExtensionPass());
   LowerToLLVMOptions llvmOptions(module.getContext(), DataLayout(module));
   llvmOptions.emitCWrappers = true;
