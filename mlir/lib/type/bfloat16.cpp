@@ -43,9 +43,11 @@
 
 using namespace std;
 using namespace gpu_runtime;
-using namespace llvm;
+// using namespace llvm;
 
 assert((sizeof(bfloat16) == 2) && "class bfloat16 must be exactly 2 bytes");
+
+// assert( (sizeof(bfloat16) == 2) && "");
 
 bool float_isnan(const float& x)
 {
