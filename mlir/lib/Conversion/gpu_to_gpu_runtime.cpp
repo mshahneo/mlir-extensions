@@ -1328,7 +1328,7 @@ struct SetSPIRVCapabilitiesPass
     };
     spirv::Extension exts[] = {
         spirv::Extension::SPV_EXT_shader_atomic_float_add,
-        spirv::Extension::SPV_KHR_expect_assume
+        spirv::Extension::SPV_KHR_expect_assume,
         spirv::Extension::SPV_INTEL_float_controls2,
         spirv::Extension::SPV_INTEL_vector_compute
     };
