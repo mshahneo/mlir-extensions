@@ -76,6 +76,7 @@ set(SOURCES_LIST
     lib/Transforms/promote_to_parallel.cpp
     lib/Transforms/type_conversion.cpp
     lib/Transforms/uplift_math.cpp
+    lib/type/bfloat16.cpp
     lib/utils.cpp
     )
 set(HEADERS_LIST
@@ -110,6 +111,7 @@ set(HEADERS_LIST
     include/mlir-extensions/Transforms/rewrite_wrapper.hpp
     include/mlir-extensions/Transforms/type_conversion.hpp
     include/mlir-extensions/Transforms/uplift_math.hpp
+    include/mlir-extensions/type/bfloat16.hpp
     include/mlir-extensions/utils.hpp
     )
 
