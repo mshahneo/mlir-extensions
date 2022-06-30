@@ -24,7 +24,11 @@
 #include <mlir/ExecutionEngine/CRunnerUtils.h>
 
 #include "dpcomp-runtime_export.h"
+#include "bfloat16.hpp"
+#include "float16.hpp"
 
+
+// /home/mshahneo/l0-runner/mlir-extensions/mlir/include/
 template <typename T, int N> struct MemRefDescriptor {
   T *allocated;
   T *aligned;
@@ -32,6 +36,23 @@ template <typename T, int N> struct MemRefDescriptor {
   int64_t sizes[N];
   int64_t strides[N];
 };
+
+// @mshahneo:
+/// Fills the given 1D bfloat16 memref with the given float value.
+extern "C" DPCOMP_RUNTIME_EXPORT void
+_mlir_ciface_fillResource1DBFloat16(MemRefDescriptor<gpu_runtime::bfloat16, 1> *ptr, // NOLINT
+                                 float value) {
+  gpu_runtime::bfloat16 bf16_val(value);
+  std::fill_n(ptr->allocated, ptr->sizes[0], bf16_val);
+}
+
+/// Fills the given 1D bfloat16 memref with the given float value.
+extern "C" DPCOMP_RUNTIME_EXPORT void
+_mlir_ciface_fillResource1DFloat16(MemRefDescriptor<gpu_runtime::float16, 1> *ptr, // NOLINT
+                                 float value) {
+  gpu_runtime::float16 f16_val(value);
+  std::fill_n(ptr->allocated, ptr->sizes[0], f16_val);
+}
 
 /// Fills the given 1D float memref with the given float value.
 extern "C" DPCOMP_RUNTIME_EXPORT void

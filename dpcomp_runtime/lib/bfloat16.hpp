@@ -111,6 +111,7 @@ namespace gpu_runtime
 
 namespace std
 {
+    bool float_isnan(const float& x);
     template <>
     class numeric_limits<gpu_runtime::bfloat16>
     {

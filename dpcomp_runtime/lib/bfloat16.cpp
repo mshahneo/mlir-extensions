@@ -38,7 +38,7 @@
 #include <limits>
 #include <cassert>
 
-#include "mlir-extensions/type/bfloat16.hpp"
+#include "bfloat16.hpp"
 // #include "ngraph/type/bfloat16.hpp"
 
 using namespace std;

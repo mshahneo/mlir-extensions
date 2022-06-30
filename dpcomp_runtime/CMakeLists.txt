@@ -23,11 +23,15 @@ endif()
 find_package(MLIR REQUIRED CONFIG)
 
 set(SOURCES_LIST
+    lib/bfloat16.cpp
     lib/context.cpp
+    lib/float16.cpp
     lib/tbb_parallel.cpp
     lib/memory.cpp
     )
 set(HEADERS_LIST
+    lib/bfloat16.hpp
+    lib/bfloat16.cpp
     )
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES_LIST} ${HEADERS_LIST})
