@@ -22,6 +22,7 @@
 
 #define mlir_c_runner_utils_EXPORTS 1
 #include <mlir/ExecutionEngine/CRunnerUtils.h>
+#include <mlir/ExecutionEngine/RunnerUtils.h>
 
 #include "dpcomp-runtime_export.h"
 #include "bfloat16.hpp"
@@ -38,6 +39,34 @@ template <typename T, int N> struct MemRefDescriptor {
 };
 
 // @mshahneo:
+/// Prints bf16 (bfloat16) memref shape
+extern "C" DPCOMP_RUNTIME_EXPORT void
+_mlir_ciface_printMemrefShapeBFloat16(UnrankedMemRefType<gpu_runtime::bfloat16> *M) {
+  std::cout << "Unranked Memref ";
+  printMemRefMetaData(std::cout, DynamicMemRefType<gpu_runtime::bfloat16>(*M));
+  std::cout << "\n";
+}
+
+/// Prints bf16 (bfloat16) memref
+extern "C" DPCOMP_RUNTIME_EXPORT void 
+_mlir_ciface_printMemrefBFloat16(UnrankedMemRefType<gpu_runtime::bfloat16> *M) {
+  impl::printMemRef(*M);
+}
+
+/// Prints f16 memref shape
+extern "C" DPCOMP_RUNTIME_EXPORT void
+_mlir_ciface_printMemrefShapeFloat16(UnrankedMemRefType<gpu_runtime::float16> *M) {
+  std::cout << "Unranked Memref ";
+  printMemRefMetaData(std::cout, DynamicMemRefType<gpu_runtime::float16>(*M));
+  std::cout << "\n";
+}
+
+/// Prints f16 memref 
+extern "C" DPCOMP_RUNTIME_EXPORT void 
+_mlir_ciface_printMemrefFloat16(UnrankedMemRefType<gpu_runtime::float16> *M) {
+  impl::printMemRef(*M);
+}
+
 /// Fills the given 1D bfloat16 memref with the given float value.
 extern "C" DPCOMP_RUNTIME_EXPORT void
 _mlir_ciface_fillResource1DBFloat16(MemRefDescriptor<gpu_runtime::bfloat16, 1> *ptr, // NOLINT
