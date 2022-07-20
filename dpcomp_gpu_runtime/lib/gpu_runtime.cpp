@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -349,7 +350,13 @@ struct Stream {
     #if defined(IMEX_ENABLE_NUMBA_HOTFIX)
        retain();
     #endif
+
+
+    std::cout << "Allocated memory address: " << mem << "\n";
     return {info, mem, event};
+
+    
+
   }
 
   void deallocBuffer(void *ptr) { zeMemFree(context.get(), ptr); }

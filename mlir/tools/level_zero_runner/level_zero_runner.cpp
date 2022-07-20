@@ -75,10 +75,19 @@ static LogicalResult runMLIRPasses(ModuleOp module) {
       gpu_runtime::createAbiAttrsPass());
   passManager.addPass(gpu_runtime::createSetSPIRVCapabilitiesPass());
 
+  /*
+   * @mshahneo:
+   * Use these passes if you want the tool chain to convert to spv dialect
+   * Don't use them if you are starting from spv and all the capabilities are set
+   *
+  */
   // passManager.addPass(gpu_runtime::createGPUToSpirvPass());
-//   OpPassManager &modulePM = passManager.nest<spirv::ModuleOp>();
-//   modulePM.addPass(spirv::createLowerABIAttributesPass());
-//   modulePM.addPass(spirv::createUpdateVersionCapabilityExtensionPass());
+  // OpPassManager &modulePM = passManager.nest<spirv::ModuleOp>();
+  // modulePM.addPass(spirv::createLowerABIAttributesPass());
+  // modulePM.addPass(spirv::createUpdateVersionCapabilityExtensionPass());
+  
+  /***************************************************************/ 
+
   LowerToLLVMOptions llvmOptions(module.getContext(), DataLayout(module));
   llvmOptions.emitCWrappers = true;
 

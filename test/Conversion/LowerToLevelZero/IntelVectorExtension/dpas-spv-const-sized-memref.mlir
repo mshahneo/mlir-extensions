@@ -2,14 +2,14 @@ module attributes {gpu.container_module, spv.target_env = #spv.target_env<#spv.v
 
   // function to setup the launch and launch the kernel
   // args: size_t systolic_depth, size_t repeat_cnt, size_t N
-  func.func @dpas_gpu(%arg_sys_dpth: index, %arg_rpt_cnt: index, %arg_N: index, %arg_v0 : memref<?xi8>, %arg_v1 : memref<?xi8>, %arg_v2 : memref<?xi8>) {
+  func.func @dpas_gpu(%arg_sys_dpth: index, %arg_rpt_cnt: index, %arg_N: index, %arg_v0 : memref<256xi8>, %arg_v1 : memref<512xi8>, %arg_v2 : memref<64xi8>) {
     %c1 = arith.constant 1 : index
     %c2 = arith.constant 2 : index
 
     
     // @Question: Understanding the Intel GPU structure
     // blocks and threads are for indexing 
-    gpu.launch_func @dpas_module::@dpas_kernel blocks in (%c1, %c1, %c1) threads in (%c1, %c1, %c1) args(%arg_v0 : memref<?xi8>, %arg_v1 : memref<?xi8>, %arg_v2 : memref<?xi8>) 
+    gpu.launch_func @dpas_module::@dpas_kernel blocks in (%c1, %c1, %c1) threads in (%c1, %c1, %c1) args(%arg_v0 : memref<256xi8>, %arg_v1 : memref<512xi8>, %arg_v2 : memref<64xi8>) 
     return
   }
 
@@ -71,7 +71,7 @@ module attributes {gpu.container_module, spv.target_env = #spv.target_env<#spv.v
 
   // GPU module, almost same as the SPIR-V module but without 'spv' specific properties
   gpu.module @dpas_module {
-    gpu.func @dpas_kernel(%arg0: memref<?xi8>, %arg1: memref<?xi8>, %arg2: memref<?xi8>) kernel attributes {spv.entry_point_abi = {local_size = dense<0> : vector<3xi32>}} {
+    gpu.func @dpas_kernel(%arg0: memref<256xi8>, %arg1: memref<512xi8>, %arg2: memref<64xi8>) kernel attributes {spv.entry_point_abi = {local_size = dense<0> : vector<3xi32>}} {
       gpu.return
     }
   }
@@ -90,18 +90,25 @@ module attributes {gpu.container_module, spv.target_env = #spv.target_env<#spv.v
     %c2 = arith.constant 2 : index
     %c4 = arith.constant 4 : index
     
+    %c32 = arith.constant 32 : index
+    %c64 = arith.constant 64 : index
+    %c128 = arith.constant 128 : index
+    %c256 = arith.constant 256 : index
     // Allocate vectors to be passed to function
 
     // Setting up Vector v0
     %v0_size = arith.muli %arg_rpt_cnt, %arg_N : index 
     // %memref_v0_cpu = memref.alloc (%v0_size) : memref<?xf32>
     %v0_size_i8 = arith.muli %v0_size, %c4 : index
+    // = 4*16*4 = 256
 
-    %memref_v0_i8 = gpu.alloc (%v0_size_i8) {gpu.alloc_shared} : memref<?xi8>
-    %memref_v0 = memref.view %memref_v0_i8[%c0][%v0_size] : memref<?xi8> to memref<?xf32>
+    // %memref_v0_i8 = gpu.alloc (%v0_size_i8) {gpu.alloc_shared} : memref<?xi8>
+    %memref_v0_i8 = gpu.alloc () {gpu.alloc_shared} : memref<256xi8>
+    %memref_v0 = memref.view %memref_v0_i8[%c0][] : memref<256xi8> to memref<64xf32>
     // Initialize v0 to 0
     // call @fillResource1DFloat(%memref_v0_cpu, %cst_0) : (memref<?xf32>, f32) -> ()
-    call @fillResource1DFloat(%memref_v0, %cst_0) : (memref<?xf32>, f32) -> ()
+    %memref_v0_1D = memref.cast %memref_v0 : memref<64xf32> to memref<?xf32>
+    call @fillResource1DFloat(%memref_v0_1D, %cst_0) : (memref<?xf32>, f32) -> ()
 
     // Setting up the Vector v1 & v2
     // v1 is setup slightly differently than other vectors, since v1 is
@@ -119,53 +126,57 @@ module attributes {gpu.container_module, spv.target_env = #spv.target_env<#spv.v
     //            \ f16 (passed to SPIR-V kernel) /
     %tmp_sys_dpth = arith.muli %arg_sys_dpth, %c2 : index
     %v1_size = arith.muli %tmp_sys_dpth, %arg_N : index
-
+    //%v1_size = 8 * 2 * 16 = 256
     // Since, we are allocating bf16 as i8, %v1_size * 2 is used
     // for allocation size
     %v1_size_i8 =  arith.muli %v1_size, %c2 : index
-    
-    %memref_v1 = gpu.alloc (%v1_size_i8) {gpu.alloc_shared}: memref<?xi8>
+    //  %v1_size_i8 = 256 * 2 = 512
+    %memref_v1 = gpu.alloc () {gpu.alloc_shared} : memref<512xi8>
 
     // Create a view of bf16 vector
-    %memref_v1_bf16 = memref.view %memref_v1[%c0][%v1_size] : memref<?xi8> to memref<?xbf16>
+    %memref_v1_bf16 = memref.view %memref_v1[%c0][] : memref<512xi8> to memref<256xbf16>
     // Create a view of f16 vector
-    %memref_v1_f16 = memref.view %memref_v1[%c0][%v1_size] : memref<?xi8> to memref<?xf16>
+    // %memref_v1_f16 = memref.view %memref_v1[%c0][%c256] : memref<512xi8> to memref<256xf16>
     
     // @RESOLVED: @ISSUE:SPIR-V type does not support bf16, hence passing vector 1, and vector 2 as f16, will load bf16 from this vector using the intel vc-intrinsic    
     // %memref_v1_gpu = gpu.alloc (%v1_size) {gpu.alloc_shared} : memref<?xf16>
     
+    %memref_v1_bf16_1D = memref.cast %memref_v1_bf16 : memref<256xbf16> to memref<?xbf16>
     // Initialize it to 1.1 as bf16, since that's the original data type for v1
-    call @fillResource1DBFloat16(%memref_v1_bf16, %cst_1) : (memref<?xbf16>, f32) -> ()
+    call @fillResource1DBFloat16(%memref_v1_bf16_1D, %cst_1) : (memref<?xbf16>, f32) -> ()
     // call @fillResource1Df16(%memref_v1_gpu, %cst_1) : (memref<?xf16>, f16) -> ()
 
     // Setting up the Vector v2
     %v2_size = arith.muli %tmp_sys_dpth, %arg_rpt_cnt : index
-
+    //  %v2_size = 8 * 4 = 32
     // Since, we are allocating bf16 as i8, %v2_size * 2 is used
     // for allocation size
     %v2_size_i8 =  arith.muli %v2_size, %c2 : index
+    // %v2_size_i8 = 32 * 2 = 64
 
-    %memref_v2 = gpu.alloc  (%v2_size_i8) {gpu.alloc_shared}: memref<?xi8>
+    %memref_v2 = gpu.alloc () {gpu.alloc_shared} : memref<64xi8>
     // Create a view of bf16 vector
-    %memref_v2_bf16 = memref.view %memref_v2[%c0][%v2_size] : memref<? x i8> to memref<? x bf16>
+    %memref_v2_bf16 = memref.view %memref_v2[%c0][] : memref<64 x i8> to memref<32 x bf16>
     // Create a view of f16 vector
-    %memref_v2_f16 = memref.view %memref_v2[%c0][%v2_size] : memref<? x i8> to memref<? x f16>
+    // %memref_v2_f16 = memref.view %memref_v2[%c0][%c32] : memref<64 x i8> to memref<32 x f16>
 
     // @@RESOLVED: ISSUE:SPIR-V type does not support bf16, hence passing vector 1, and vector 2 as f16, will load bf16 from this vector using the intel vc-intrinsic    
     // %memref_v2_gpu = gpu.alloc (%v2_size) {gpu.alloc_shared} : memref<?xf16>
     
+
+    %memref_v2_bf16_1D = memref.cast %memref_v2_bf16 : memref<32xbf16> to memref<?xbf16>
     // Initialize it to 2.2 as bf16, since that's the original data type for v2
-    call @fillResource1DBFloat16(%memref_v2_bf16, %cst_2) : (memref<?xbf16>, f32) -> ()
+    call @fillResource1DBFloat16(%memref_v2_bf16_1D, %cst_2) : (memref<?xbf16>, f32) -> ()
     // call @fillResource1Df16(%memref_v2_gpu, %cst_2) : (memref<?xf16>, f16) -> ()
 
     // Calling the reference function/CPU version
-    call @dpas_ref(%arg_sys_dpth, %arg_rpt_cnt,  %arg_N, %memref_v0, %memref_v1_bf16, %memref_v2_bf16) : (index, index, index, memref<?xf32>, memref<?xbf16>, memref<?xbf16>) -> ()
+    // call @dpas_ref(%arg_sys_dpth, %arg_rpt_cnt,  %arg_N, %memref_v0, %memref_v1_bf16, %memref_v2_bf16) : (index, index, index, memref<?xf32>, memref<?xbf16>, memref<?xbf16>) -> ()
 
     // Calling the GPU version, using f16 view of v1 and v2 vector
-    call @dpas_gpu(%arg_sys_dpth, %arg_rpt_cnt,  %arg_N, %memref_v0_i8, %memref_v1, %memref_v2) : (index, index, index, memref<?xi8>, memref<?xi8>, memref<?xi8>) -> ()
+    call @dpas_gpu(%arg_sys_dpth, %arg_rpt_cnt,  %arg_N, %memref_v0_i8, %memref_v1, %memref_v2) : (index, index, index, memref<256xi8>, memref<512xi8>, memref<64xi8>) -> ()
 
     // Print the result
-    %result = memref.cast %memref_v0 : memref<?xf32> to memref<*xf32>
+    %result = memref.cast %memref_v0 : memref<64xf32> to memref<*xf32>
     call @printMemrefF32(%result) : (memref<*xf32>) -> ()
 
     return
