@@ -153,7 +153,7 @@ static ze_module_handle_t loadModule(GPUSYCLQUEUE *queue, const void *data,
                            ZE_MODULE_FORMAT_IL_SPIRV,
                            dataSize,
                            (const uint8_t *)data,
-                           nullptr,
+                           "-vc-codegen",
                            nullptr};
   auto zeDevice = sycl::get_native<sycl::backend::ext_oneapi_level_zero>(
       syclQueue.get_device());

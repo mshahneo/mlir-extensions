@@ -215,6 +215,7 @@ static ze_module_handle_t loadModule(GPUL0QUEUE *queue, const void *data,
   desc.format = ZE_MODULE_FORMAT_IL_SPIRV;
   desc.pInputModule = static_cast<const uint8_t *>(data);
   desc.inputSize = dataSize;
+  desc.pBuildFlags = "-vc-codegen";
   CHECK_ZE_RESULT(zeModuleCreate(gpuL0Queue->zeContext_, gpuL0Queue->zeDevice_,
                                  &desc, &zeModule, nullptr));
   return zeModule;
