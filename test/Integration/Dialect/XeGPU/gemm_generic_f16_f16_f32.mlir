@@ -1111,12 +1111,12 @@ module @gemm attributes {gpu.container_module} {
     // run GPU
     %2 = call @test(%A, %B, %C, %M, %K, %N, %wg_M, %wg_K, %wg_N, %sg_M, %sg_K, %sg_N, %wg_X, %wg_Y, %wg_Z, %sg_X, %sg_Y, %sg_Z, %prefetch_distance, %barrier_distance) : (memref<?x?xf16>, memref<?x?xf16>, memref<?x?xf32>, index, index, index, index, index, index, index, index, index, index, index, index, index, index, index, index, index) -> memref<?x?xf32>
 
-    // call @cpu_reference(%A, %B, %C_ref, %M, %K, %N) : (memref<?x?xf16>, memref<?x?xf16>, memref<?x?xf32>, index, index, index) -> ()
+    call @cpu_reference(%A, %B, %C_ref, %M, %K, %N) : (memref<?x?xf16>, memref<?x?xf16>, memref<?x?xf32>, index, index, index) -> ()
 
     // // %cast = memref.cast %A : memref<?x?xf16> to memref<*xf16>
     // // call @printMemrefF16(%cast) : (memref<*xf16>) -> ()
-    // %cast_C = memref.cast %2 : memref<?x?xf32> to memref<*xf32>
-    // %cast_C_ref = memref.cast %C_ref : memref<?x?xf32> to memref<*xf32>
+    %cast_C = memref.cast %2 : memref<?x?xf32> to memref<*xf32>
+    %cast_C_ref = memref.cast %C_ref : memref<?x?xf32> to memref<*xf32>
     // // call @printMemrefF16(%cast_C) : (memref<*xf16>) -> ()
     // // call @printMemrefF32(%cast_C_ref) : (memref<*xf32>) -> ()
 
@@ -1132,7 +1132,7 @@ module @gemm attributes {gpu.container_module} {
     // call @printMemrefF16(%C_row_0_cast_gpu) : (memref<*xf16>) -> ()
 
     // CHECK: [ALLCLOSE: TRUE]
-    // call @printAllcloseF32(%cast_C, %cast_C_ref) : (memref<*xf32>, memref<*xf32>) -> ()
+    call @printAllcloseF32(%cast_C, %cast_C_ref) : (memref<*xf32>, memref<*xf32>) -> ()
     // call @printAllcloseF16(%C_row_0_cast_gpu, %C_row_0_cast) : (memref<*xf16>, memref<*xf32>) -> ()
 
     memref.dealloc %A : memref<?x?xf16>
