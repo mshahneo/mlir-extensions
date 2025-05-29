@@ -23,6 +23,8 @@
 #include <mutex>
 #include <stdexcept>
 #include <vector>
+#include <algorithm>
+#include <iostream>
 
 #include <level_zero/ze_api.h>
 
@@ -516,8 +518,13 @@ static ze_event_handle_t launchKernel(GPUL0QUEUE *queue,
     auto executionTime = 0.0f;
     auto maxTime = 0.0f;
     auto minTime = FLT_MAX;
-    auto rounds = 1000;
+    auto rounds = 9;
     auto warmups = 3;
+
+    auto excludedRounds = 3;
+
+    std::vector<float> maxTimes(excludedRounds, 0.0);
+    std::vector<float> minTimes(excludedRounds, FLT_MAX);
 
     // Before each run we need to flush the L3 cache (global memory cache) to
     // make sure each profiling run has the same cache state. This is done by
@@ -579,12 +586,32 @@ static ze_event_handle_t launchKernel(GPUL0QUEUE *queue,
         maxTime = duration;
       if (duration < minTime)
         minTime = duration;
+
+      std::sort(minTimes.begin(), minTimes.end());
+      if(duration < minTimes.back()) {
+        minTimes.back() = duration;
+      }
+      std::sort(maxTimes.begin(), maxTimes.end());
+      if(duration > maxTimes.front()) {
+        maxTimes.front() = duration;
+      }
     }
     deallocDeviceMemory(queue, cache);
+
+    auto medianTotalTime = executionTime;
+    for(auto i = 0; i < excludedRounds; ++i) {
+      std::cout << "minTimes[" << i << "] = " << minTimes[i] << "\n";
+      std::cout << "maxTimes[" << i << "] = " << maxTimes[i] << "\n";
+      medianTotalTime -= minTimes[i];
+      medianTotalTime -= maxTimes[i];
+    }
+
+    auto medianAvgTime = medianTotalTime / (rounds - (2*excludedRounds));
+
     fprintf(stdout,
             "the kernel execution time is (ms, on L0 runtime):"
-            "avg: %.4f, min: %.4f, max: %.4f (over %d runs)\n",
-            executionTime / rounds, minTime, maxTime, rounds);
+            "avg: %.4f, min: %.4f, max: %.4f, median_avg:%.4f, (over %d runs)\n",
+            executionTime / rounds, minTime, maxTime, medianAvgTime, rounds);
   }
 
   Event *event = new Event(queue->zeContext_, queue->zeDevice_);

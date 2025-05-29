@@ -27,11 +27,14 @@ builtin.module(
     finalize-memref-to-llvm
     convert-cf-to-llvm
     convert-vector-to-llvm
-    convert-index-to-llvm
+    lower-affine
+    convert-arith-to-llvm
+    canonicalize
+    convert-index-to-llvm{index-bitwidth=64}
+    canonicalize
     convert-arith-to-llvm
     convert-func-to-llvm
     convert-math-to-llvm
     convert-gpux-to-llvm
-    lower-affine
     reconcile-unrealized-casts)
 // End

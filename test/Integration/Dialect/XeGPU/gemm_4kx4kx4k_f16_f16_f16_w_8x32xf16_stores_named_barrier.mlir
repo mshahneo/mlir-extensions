@@ -179,10 +179,39 @@ module @gemm attributes {gpu.container_module} {
       %c_init_val_3_3 = vector.shape_cast %zero_vec : vector<128xf32> to vector<8x16xf32>
 
 
-      xegpu.alloc_nbarrier 16
-      %nbarrier_id = arith.constant 1 : i8
-      %num_threads = arith.constant 32 : i8
-      %nbarrier = xegpu.init_nbarrier %nbarrier_id, %num_threads : i8, i8 -> !xegpu.nbarrier
+      // Multi nbarrier implementation,
+      // one set nbarrier is used to sync subgroups with same sg_id_x (local_sg_id_x)
+      // second set nbarrier us used to sync subgroups with same sg_id_y (local_sg_id_y)
+      // In this case wg_size = 8,4 (wg_size_x = 8; wg_size_y = 4)
+      // So in Y-direction we need 4 nbarrier (to sync subgroups with same sg_id_y)
+      // In X-direction we need 8 nbarrier (to sync subgroups with same sg_id_x)
+      %c_wg_size_x = arith.constant 8 : index
+      %c_wg_size_y = arith.constant 4 : index
+      %num_nbarrier = arith.addi %c_wg_size_y, %c_wg_size_x : index // 8+4=12
+      xegpu.alloc_nbarrier 12 // = 12
+
+      // First set of nbarriers work across coloumns, we have 4 coloums of subgroups,
+      // Hnece 4 nbrrier
+      // Each nbarrier has 8 producers and consumers
+      // nbarrier type is Producer_Consumer (https://gfxspecs.intel.com/Predator/Home/Index/57499)
+
+      // %nbarrier_role = arith.constant 0 : i8
+      %nbarrier_threads_y = arith.constant 8 : i8
+      %nbarrier_id_y = arith.index_cast %local_sg_id_y : index to i8
+      %nbarrier_y = xegpu.init_nbarrier %nbarrier_id_y, %nbarrier_threads_y : i8, i8 -> !xegpu.nbarrier
+
+      // Second set of barriers work on across rows of subgroups,
+      // we have 8 rows of subgroups. Hnece, 8 nbarrier
+      // Each nbarrier has 4 producers and consumers
+      // nbarrier type is Producer_Consumer (https://gfxspecs.intel.com/Predator/Home/Index/57499)
+
+      // We already have 4 (=%c_wg_size_y) nbarriers with id 0-3,
+      // Now the next set of barrier id would start from 4, hence,
+      %nbarrier_threads_x = arith.constant 4 : i8
+      %index_nbarrier_id_x = arith.addi %c_wg_size_y, %local_sg_id_x : index
+      %nbarrier_id_x = arith.index_cast %index_nbarrier_id_x : index to i8
+      %nbarrier_x = xegpu.init_nbarrier %nbarrier_id_x, %nbarrier_threads_x : i8, i8 -> !xegpu.nbarrier
+
       // K loop advances in 32 steps
       %k_loop_result:21 = scf.for %k = %c0 to %c4096 step %c32 iter_args (
           %A_tile_0 = %A_sg_init_tile_0,
@@ -221,11 +250,12 @@ module @gemm attributes {gpu.container_module} {
           )
           {
         // all SGs must arrive here first
-        %every_8th_iter = arith.remui %k, %c256 : index
+        %every_8th_iter = arith.remui %k, %c32 : index
         %every_8th_iter_i32 = arith.index_cast %every_8th_iter : index to i32
         %every_8th_iter_cond = arith.cmpi eq, %every_8th_iter_i32, %c0_i32 : i32
         scf.if %every_8th_iter_cond  {
-          xegpu.nbarrier_arrive %nbarrier : !xegpu.nbarrier
+          xegpu.nbarrier_arrive %nbarrier_y : !xegpu.nbarrier
+          xegpu.nbarrier_arrive %nbarrier_x : !xegpu.nbarrier
         }
         // load A tiles
         %a_val = xegpu.load_nd %A_tile_0 {l1_hint = #xegpu.cache_hint<cached>, l2_hint = #xegpu.cache_hint<cached>, l3_hint = #xegpu.cache_hint<cached>} : !xegpu.tensor_desc<32x16xf16, #xegpu.block_tdesc_attr<array_length = 2>> -> vector<2x32x16xf16>
@@ -362,7 +392,8 @@ module @gemm attributes {gpu.container_module} {
         xegpu.compile_hint
         //  barrier wait
         scf.if %every_8th_iter_cond {
-          xegpu.nbarrier_wait %nbarrier : !xegpu.nbarrier
+          xegpu.nbarrier_wait %nbarrier_y : !xegpu.nbarrier
+          xegpu.nbarrier_wait %nbarrier_x : !xegpu.nbarrier
         }
 
         scf.yield %next_A_tile_0, %next_B_tile_0, %next_B_tile_1,
